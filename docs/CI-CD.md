@@ -2,7 +2,7 @@
 
 ## 🚀 GitHub Actions Workflow
 
-本项目使用优化的GitHub Actions workflow进行持续集成和部署。
+本项目使用优化的GitHub Actions workflow进行持续集成。
 
 ### 📋 Workflow 特性
 
@@ -14,19 +14,13 @@
 #### 🧪 **测试和构建** (`test-and-build`) 
 - ✅ 多Node.js版本测试 (18.x, 20.x)
 - ✅ 依赖安装和验证
-- ✅ 基础功能验证
+- ✅ 完整的测试套件运行
 - ✅ 服务器启动测试
-- ✅ 覆盖率报告 (如果存在)
 
 #### 🔒 **安全扫描** (`security-scan`)
 - ✅ NPM 安全审计
 - ✅ 依赖漏洞检查
 - ✅ 过期包检查
-
-#### 🐳 **Docker测试** (`docker-test`)
-- ✅ Docker 镜像构建测试
-- ✅ 容器启动验证
-- ✅ 基础健康检查
 
 #### 🚀 **部署就绪检查** (`deploy-ready`)
 - ✅ 所有检查通过确认
@@ -43,7 +37,7 @@
 您可以在 README.md 中添加以下徽章：
 
 \`\`\`markdown
-![CI/CD](https://github.com/x-junkang/file-transfer/workflows/🚀%20File%20Transfer%20CI/CD/badge.svg)
+![CI/CD](https://github.com/x-junkang/file-transfer/workflows/🚀%20File%20Transfer%20CI/badge.svg)
 ![Node.js](https://img.shields.io/badge/node.js-18.x%20|%2020.x-green)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 \`\`\`
@@ -61,10 +55,6 @@ npm audit
 
 # 检查过期包
 npm outdated
-
-# 测试Docker构建 (可选)
-docker build -t file-transfer-local .
-docker run -p 3000:3000 file-transfer-local
 \`\`\`
 
 ### 🔧 自定义配置
@@ -99,6 +89,6 @@ npm install --save-dev jest
 2. **多环境验证**: 不同Node.js版本兼容性
 3. **快速反馈**: 分阶段执行，快速发现问题
 4. **部署就绪**: 清晰的部署状态指示
-5. **Docker友好**: 容器化部署测试
+5. **简单可靠**: 无复杂依赖，专注核心功能
 
 这个workflow确保每次代码变更都经过完整的质量检查！
