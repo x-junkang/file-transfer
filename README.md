@@ -1,9 +1,8 @@
 # 局域网文件传输网站
 
-![CI/CD](https://github.com/x-junkang/file-transfer/workflows/🚀%20File%20Transfer%20CI/CD/badge.svg)
+![CI/CD](https://github.com/x-junkang/file-transfer/workflows/🚀%20File%20Transfer%20CI/badge.svg)
 ![Node.js](https://img.shields.io/badge/node.js-18.x%20|%2020.x-green)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Docker](https://img.shields.io/badge/docker-supported-blue)
 
 这是一个支持局域网文件传输的Web应用，用户可以上传文件并生成二维码，让其他设备通过扫码下载文件。
 
@@ -16,7 +15,7 @@
 - 📋 **文件列表管理** - 查看、删除上传的文件
 - 🗑️ **自动清理** - 24小时后自动删除过期文件
 - 📱 **移动端优化** - 完美支持iOS和Android
-- 🔧 **一键部署** - 支持Docker容器化部署
+- 🔧 **简单部署** - 无需复杂配置，一键启动
 
 ## 安装和使用
 

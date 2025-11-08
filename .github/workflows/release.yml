@@ -11,10 +11,6 @@ on:
         required: true
         default: 'v1.0.0'
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
 jobs:
   # 创建GitHub Release
   create-release:
@@ -52,16 +48,11 @@ jobs:
           echo "### 🛠️ Technical" >> CHANGELOG.md
           echo "- Node.js + Express.js 后端" >> CHANGELOG.md
           echo "- 响应式前端设计" >> CHANGELOG.md
-          echo "- Docker 容器化支持" >> CHANGELOG.md
           echo "- iOS Safari 兼容性优化" >> CHANGELOG.md
           echo "" >> CHANGELOG.md
           echo "### 📦 Installation" >> CHANGELOG.md
           echo "\`\`\`bash" >> CHANGELOG.md
-          echo "# Docker 方式" >> CHANGELOG.md
-          echo "docker pull ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}" >> CHANGELOG.md
-          echo "docker run -p 3000:3000 ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          echo "# 源码方式" >> CHANGELOG.md
+          echo "# 源码安装" >> CHANGELOG.md
           echo "git clone https://github.com/${{ github.repository }}.git" >> CHANGELOG.md
           echo "cd file-transfer" >> CHANGELOG.md
           echo "npm install && npm start" >> CHANGELOG.md
@@ -79,50 +70,6 @@ jobs:
           draft: false
           prerelease: ${{ contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'alpha') }}
 
-  # 构建和推送Docker镜像
-  build-and-push-image:
-    name: 🐳 Build & Push Docker Image
-    runs-on: ubuntu-latest
-    needs: create-release
-    permissions:
-      contents: read
-      packages: write
-      
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-        
-      - name: 🐳 Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        
-      - name: 🔐 Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: 🏷️ Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=tag
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
-            
-      - name: 🏗️ Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          
   # 创建部署包
   create-deployment-package:
     name: 📦 Create Deployment Package
@@ -137,10 +84,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
-          cache: 'npm'
           
       - name: 🔧 Install production dependencies
-        run: npm ci --only=production
+        run: npm install --only=production
         
       - name: 📁 Create deployment structure
         run: |
@@ -148,7 +94,6 @@ jobs:
           cp -r public deployment/file-transfer/
           cp server.js package*.json deployment/file-transfer/
           cp -r node_modules deployment/file-transfer/
-          cp Dockerfile deployment/file-transfer/
           cp README.md deployment/file-transfer/
           
           # 创建部署脚本
@@ -171,30 +116,6 @@ jobs:
           EOF
           
           chmod +x deployment/file-transfer/deploy.sh
-          
-          # 创建Docker部署脚本
-          cat > deployment/file-transfer/docker-deploy.sh << 'EOF'
-          #!/bin/bash
-          echo "🐳 使用Docker部署..."
-          
-          # 构建镜像
-          docker build -t file-transfer .
-          
-          # 停止现有容器
-          docker stop file-transfer 2>/dev/null || true
-          docker rm file-transfer 2>/dev/null || true
-          
-          # 启动新容器
-          docker run -d \
-            --name file-transfer \
-            -p 3000:3000 \
-            -v $(pwd)/uploads:/app/uploads \
-            file-transfer
-            
-          echo "✅ 部署完成! 访问 http://localhost:3000"
-          EOF
-          
-          chmod +x deployment/file-transfer/docker-deploy.sh
         
       - name: 📦 Create archive
         run: |
@@ -226,23 +147,22 @@ jobs:
   notify-release:
     name: 📢 Release Notification
     runs-on: ubuntu-latest
-    needs: [create-release, build-and-push-image, create-deployment-package]
+    needs: [create-release, create-deployment-package]
     if: always()
     
     steps:
       - name: 🎉 Success Notification
-        if: needs.build-and-push-image.result == 'success' && needs.create-deployment-package.result == 'success'
+        if: needs.create-deployment-package.result == 'success'
         run: |
           echo "🎉 发布成功!"
           echo "版本: ${{ needs.create-release.outputs.version }}"
-          echo "🐳 Docker镜像: ghcr.io/${{ github.repository }}:${{ needs.create-release.outputs.version }}"
           echo "📦 部署包已创建"
           echo ""
           echo "🚀 快速开始:"
-          echo "docker run -p 3000:3000 ghcr.io/${{ github.repository }}:${{ needs.create-release.outputs.version }}"
+          echo "下载部署包，解压后运行 ./deploy.sh"
           
       - name: ❌ Failure Notification  
-        if: needs.build-and-push-image.result == 'failure' || needs.create-deployment-package.result == 'failure'
+        if: needs.create-deployment-package.result == 'failure'
         run: |
           echo "❌ 发布失败，请检查构建日志"
           exit 1
