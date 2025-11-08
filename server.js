@@ -58,6 +58,87 @@ function getLocalIP() {
 // 存储文件信息
 let fileDatabase = [];
 
+// 启动时读取uploads目录中的文件
+async function loadExistingFiles() {
+  try {
+    console.log('🔍 扫描uploads目录中的现有文件...');
+    
+    if (!fs.existsSync(uploadsDir)) {
+      console.log('📁 uploads目录不存在，跳过文件加载');
+      return;
+    }
+
+    const files = fs.readdirSync(uploadsDir);
+    const localIP = getLocalIP();
+    let loadedCount = 0;
+
+    for (const filename of files) {
+      const filePath = path.join(uploadsDir, filename);
+      const stat = fs.statSync(filePath);
+      
+      // 跳过目录
+      if (!stat.isFile()) {
+        continue;
+      }
+
+      try {
+        // 解析文件名格式：时间戳_原文件名
+        const match = filename.match(/^(\d+)_(.+)$/);
+        if (!match) {
+          console.log(`⚠️  跳过格式不符的文件: ${filename}`);
+          continue;
+        }
+
+        const timestamp = match[1];
+        const originalName = match[2];
+
+        // 创建文件信息对象
+        const fileInfo = {
+          id: timestamp,
+          originalName: originalName,
+          filename: filename,
+          size: stat.size,
+          uploadTime: new Date(parseInt(timestamp)).toISOString(),
+          downloadUrl: `http://${localIP}:${PORT}/download/${filename}`
+        };
+
+        // 生成二维码
+        const qrCodeData = await QRCode.toDataURL(fileInfo.downloadUrl);
+        fileInfo.qrCode = qrCodeData;
+
+        // 添加到文件数据库
+        fileDatabase.push(fileInfo);
+        loadedCount++;
+
+        console.log(`✅ 加载文件: ${originalName} (${formatFileSize(stat.size)})`);
+
+      } catch (error) {
+        console.error(`❌ 加载文件失败: ${filename}`, error.message);
+      }
+    }
+
+    if (loadedCount > 0) {
+      console.log(`🎉 成功加载 ${loadedCount} 个现有文件`);
+      // 按上传时间排序，最新的在前面
+      fileDatabase.sort((a, b) => new Date(b.uploadTime) - new Date(a.uploadTime));
+    } else {
+      console.log('📭 没有找到有效的现有文件');
+    }
+
+  } catch (error) {
+    console.error('❌ 加载现有文件时发生错误:', error);
+  }
+}
+
+// 格式化文件大小的辅助函数
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 // 根路径 - 返回主页
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -86,6 +167,9 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 
     // 保存到文件数据库
     fileDatabase.push(fileInfo);
+
+    // 可选：将文件信息保存到磁盘，便于恢复（如果需要持久化）
+    // 这里我们不保存，因为可以从文件名和文件系统信息重建
 
     res.json({
       success: true,
@@ -196,14 +280,27 @@ function cleanupExpiredFiles() {
 setInterval(cleanupExpiredFiles, 60 * 60 * 1000);
 
 // 启动服务器
-app.listen(PORT, '0.0.0.0', () => {
-  const localIP = getLocalIP();
-  console.log('==================================================');
-  console.log('📁 文件传输服务已启动！');
-  console.log(`🌐 本地访问: http://localhost:${PORT}`);
-  console.log(`📱 局域网访问: http://${localIP}:${PORT}`);
-  console.log(`📋 上传目录: ${uploadsDir}`);
-  console.log('==================================================');
+async function startServer() {
+  // 先加载现有文件
+  await loadExistingFiles();
+  
+  // 然后启动HTTP服务器
+  app.listen(PORT, '0.0.0.0', () => {
+    const localIP = getLocalIP();
+    console.log('==================================================');
+    console.log('📁 文件传输服务已启动！');
+    console.log(`🌐 本地访问: http://localhost:${PORT}`);
+    console.log(`📱 局域网访问: http://${localIP}:${PORT}`);
+    console.log(`📋 上传目录: ${uploadsDir}`);
+    console.log(`📊 已加载文件数量: ${fileDatabase.length}`);
+    console.log('==================================================');
+  });
+}
+
+// 启动服务器
+startServer().catch(error => {
+  console.error('❌ 服务器启动失败:', error);
+  process.exit(1);
 });
 
 // 优雅关闭
